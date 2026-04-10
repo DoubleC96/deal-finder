@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deal Finder — Log ind</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --card: #22263a;
+      --accent: #6c63ff; --text: #e2e8f0; --muted: #8892a4;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    }
+    .login-box {
+      background: var(--surface); border-radius: 16px;
+      padding: 2.5rem 2rem; width: 100%; max-width: 380px;
+      border: 1px solid rgba(108,99,255,.25);
+      box-shadow: 0 8px 40px rgba(0,0,0,.4);
+    }
+    .logo { text-align: center; margin-bottom: 1.8rem; }
+    .logo .icon { font-size: 2.5rem; }
+    .logo h1 { font-size: 1.4rem; font-weight: 700; margin-top: .4rem; }
+    .logo p  { font-size: .85rem; color: var(--muted); margin-top: .3rem; }
+
+    label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: .4rem; }
+    input {
+      width: 100%; background: var(--card);
+      border: 1px solid rgba(255,255,255,.1); color: var(--text);
+      border-radius: 8px; padding: .7rem 1rem; font-size: .95rem;
+      outline: none; transition: border-color .2s; margin-bottom: 1rem;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .btn {
+      width: 100%; background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; padding: .75rem;
+      font-size: 1rem; font-weight: 600; cursor: pointer;
+      transition: opacity .2s; margin-top: .5rem;
+    }
+    .btn:hover    { opacity: .88; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .error {
+      background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4);
+      color: #fca5a5; border-radius: 8px; padding: .65rem 1rem;
+      font-size: .88rem; margin-bottom: 1rem; display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="logo">
+      <div class="icon">🔍</div>
+      <h1>Deal Finder</h1>
+      <p>Log ind for at fortsætte</p>
+    </div>
+
+    <div class="error" id="error">Forkert brugernavn eller kodeord</div>
+
+    <label for="username">Brugernavn</label>
+    <input type="text" id="username" placeholder="admin" autocomplete="username" />
+
+    <label for="password">Kodeord</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password" />
+
+    <button class="btn" id="loginBtn" onclick="doLogin()">Log ind</button>
+  </div>
+
+<script>
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter") doLogin();
+  });
+
+  async function doLogin() {
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value;
+    const btn = document.getElementById("loginBtn");
+    const err = document.getElementById("error");
+
+    if (!username || !password) {
+      err.style.display = "block";
+      err.textContent = "Udfyld både brugernavn og kodeord.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Logger ind…";
+    err.style.display = "none";
+
+    try {
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        window.location.href = "/";
+      } else {
+        err.textContent = "Forkert brugernavn eller kodeord.";
+        err.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Log ind";
+      }
+    } catch (e) {
+      err.textContent = "Kunne ikke forbinde til serveren.";
+      err.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Log ind";
+    }
+  }
+</script>
+</body>
+</html>
