@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+deals.db
+*.db-journal
+.DS_Store
