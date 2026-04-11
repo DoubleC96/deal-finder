@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deal Finder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --card: #22263a;
+      --accent: #6c63ff; --green: #22c55e; --yellow: #facc15; --red: #ff6584;
+      --text: #e2e8f0; --muted: #8892a4; --radius: 12px;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header {
+      background: linear-gradient(135deg, #1a1d27, #22263a);
+      border-bottom: 1px solid rgba(108,99,255,.3);
+      padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem;
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; }
+    .badge { background: var(--accent); color: #fff; font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+    .rate-chip { margin-left: auto; font-size: .82rem; color: var(--muted); }
+    .rate-chip strong { color: var(--green); }
+    .logout-btn { background: rgba(239,68,68,.15); color: #fca5a5; border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: .35rem .9rem; font-size: .82rem; cursor: pointer; margin-left: 1rem; }
+    .logout-btn:hover { opacity: .8; }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+
+    .card { background: var(--surface); border-radius: var(--radius); padding: 1.5rem 2rem; margin-bottom: 1.2rem; border: 1px solid rgba(108,99,255,.2); }
+    .card.green-border { border-color: rgba(34,197,94,.2); }
+    .card h2 { font-size: 1rem; color: var(--muted); margin-bottom: 1rem; }
+
+    .row { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; }
+    input[type="text"], input[type="number"], input[type="email"] {
+      background: var(--card); border: 1px solid rgba(255,255,255,.1); color: var(--text);
+      border-radius: 8px; padding: .6rem 1rem; font-size: .95rem; outline: none; transition: border-color .2s;
+    }
+    input:focus { border-color: var(--accent); }
+    input[type="text"] { flex: 1; min-width: 200px; }
+    input[type="number"] { width: 140px; }
+    input[type="email"] { flex: 1; min-width: 180px; }
+
+    .discount-row { display: flex; align-items: center; gap: .75rem; margin-top: .75rem; flex-wrap: wrap; }
+    .discount-row label { color: var(--muted); font-size: .9rem; }
+    input[type="range"] { accent-color: var(--accent); width: 150px; }
+    #discountVal { color: var(--accent); font-weight: 700; min-width: 35px; }
+
+    .btn { border: none; border-radius: 8px; padding: .65rem 1.4rem; font-size: .95rem; font-weight: 600; cursor: pointer; transition: opacity .2s, transform .1s; display: flex; align-items: center; gap: .5rem; }
+    .btn:hover { opacity: .88; } .btn:active { transform: scale(.97); } .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-notify  { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+    .btn-chart   { background: rgba(108,99,255,.15); color: var(--accent); border: 1px solid rgba(108,99,255,.3); font-size: .85rem; padding: .45rem 1rem; }
+
+    .avg-pill { display: inline-flex; align-items: center; gap: .5rem; background: rgba(108,99,255,.12); border: 1px solid rgba(108,99,255,.3); border-radius: 999px; padding: .35rem 1rem; font-size: .82rem; color: var(--muted); margin-bottom: 1.2rem; }
+    .avg-pill strong { color: var(--accent); }
+
+    .error-banner { background: rgba(239,68,68,.15); border: 1px solid rgba(239,68,68,.4); color: #fca5a5; border-radius: 8px; padding: .8rem 1.2rem; margin-bottom: 1rem; display: none; }
+
+    .stats-bar { display: flex; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; align-items: center; }
+    .stat-chip { background: var(--surface); border-radius: 8px; padding: .5rem 1rem; font-size: .85rem; border: 1px solid rgba(255,255,255,.07); }
+    .stat-chip strong { color: var(--accent); }
+    .stat-chip.dba-chip strong { color: var(--yellow); }
+    .stat-chip.ka-chip  strong { color: var(--red); }
+
+    .filter-bar { display: flex; gap: .75rem; margin-bottom: 1.2rem; flex-wrap: wrap; align-items: center; }
+    .filter-bar label { color: var(--muted); font-size: .85rem; }
+    select { background: var(--card); border: 1px solid rgba(255,255,255,.1); color: var(--text); border-radius: 8px; padding: .4rem .8rem; font-size: .85rem; outline: none; }
+    .toggle-deals { display: flex; align-items: center; gap: .5rem; cursor: pointer; color: var(--muted); font-size: .85rem; user-select: none; }
+    .toggle-deals input { accent-color: var(--green); width: 16px; height: 16px; }
+
+    .chart-section { display: none; background: var(--surface); border-radius: var(--radius); padding: 1.5rem 2rem; margin-bottom: 1.5rem; border: 1px solid rgba(108,99,255,.2); }
+    .chart-section h3 { font-size: 1rem; color: var(--muted); margin-bottom: 1rem; }
+    .chart-wrap { position: relative; height: 220px; }
+
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+    .listing-card { background: var(--card); border-radius: var(--radius); padding: 1.1rem 1.2rem; border: 1px solid rgba(255,255,255,.07); transition: transform .15s, border-color .15s; display: flex; flex-direction: column; gap: .5rem; text-decoration: none; color: inherit; }
+    .listing-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .listing-card.deal { border-color: rgba(34,197,94,.4); }
+
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+    .card-title { font-size: .95rem; font-weight: 600; line-height: 1.3; flex: 1; }
+    .source-tag { font-size: .7rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; text-transform: uppercase; white-space: nowrap; }
+    .source-tag.dba          { background: rgba(250,204,21,.15); color: var(--yellow); }
+    .source-tag.kleinanzeigen { background: rgba(255,101,132,.15); color: var(--red); }
+
+    .card-price { font-size: 1.3rem; font-weight: 800; }
+    .card-price small { font-size: .75rem; color: var(--muted); font-weight: 400; }
+    .card-price .dkk-equiv { font-size: .8rem; color: var(--muted); font-weight: 400; margin-left: .3rem; }
+
+    .deal-badge { display: inline-flex; align-items: center; gap: .3rem; background: rgba(34,197,94,.15); color: var(--green); border-radius: 6px; padding: 2px 8px; font-size: .78rem; font-weight: 700; }
+    .ref-note { font-weight: 400; color: var(--muted); font-size: .72rem; }
+    .card-location { font-size: .8rem; color: var(--muted); }
+
+    .notify-success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.3); color: var(--green); border-radius: 8px; padding: .6rem 1rem; font-size: .9rem; display: none; margin-top: .75rem; }
+
+    .spinner { display: none; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,.2); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty { text-align: center; padding: 4rem 2rem; color: var(--muted); }
+    .empty .icon { font-size: 3rem; margin-bottom: 1rem; }
+
+    @media (max-width: 600px) { .row { flex-direction: column; } input[type="text"] { min-width: auto; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🔍</span>
+  <h1>Deal Finder</h1>
+  <div class="badge">DBA + KA</div>
+  <div class="rate-chip">💱 1 EUR = <strong id="headerRate">—</strong> DKK</div>
+  <button class="logout-btn" onclick="logout()">Log ud</button>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>Søg på tværs af DBA og Kleinanzeigen — deals vurderes mod det samlede gennemsnit</h2>
+    <div class="row">
+      <input type="text" id="queryInput" placeholder="Hvad leder du efter? (f.eks. iphone, ps5, laptop...)" />
+      <input type="number" id="maxPriceInput" placeholder="Max pris (kr)" min="0" />
+      <button class="btn btn-primary" id="searchBtn" onclick="runSearch()">
+        <span>Søg</span>
+        <div class="spinner" id="spinner"></div>
+      </button>
+    </div>
+    <div class="discount-row">
+      <label>Vis kun deals mindst</label>
+      <input type="range" id="discountSlider" min="5" max="60" value="25"
+             oninput="document.getElementById('discountVal').textContent = this.value + '%'" />
+      <span id="discountVal">25%</span>
+      <label>under det samlede gennemsnit</label>
+    </div>
+  </div>
+
+  <div class="card green-border">
+    <h2>🔔 Få besked når der dukker nye deals op</h2>
+    <div class="row">
+      <input type="email" id="notifyEmail" placeholder="din@email.dk" />
+      <button class="btn btn-notify" onclick="saveNotification()">Gem notifikation</button>
+    </div>
+    <div class="notify-success" id="notifySuccess"></div>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="avg-pill" id="avgPill" style="display:none">
+    📊 Samlet gennemsnit: <strong id="avgPrice">—</strong> kr
+    &nbsp;|&nbsp; Kurs: <strong id="rateDisplay">—</strong>
+    &nbsp;|&nbsp; 🇩🇰 <span id="dbaCount">0</span> DBA &nbsp; 🇩🇪 <span id="kaCount">0</span> KA
+  </div>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat-chip">Annoncer i alt: <strong id="statTotal">0</strong></div>
+    <div class="stat-chip">Deals: <strong id="statDeals" style="color:var(--green)">0</strong></div>
+    <div class="stat-chip">Søgning: <strong id="statQuery">—</strong></div>
+    <button class="btn btn-chart" onclick="toggleChart()">📈 Prishistorik</button>
+  </div>
+
+  <div class="chart-section" id="chartSection">
+    <h3>📈 Prisudvikling — <span id="chartTitle">—</span></h3>
+    <div class="chart-wrap"><canvas id="priceChart"></canvas></div>
+  </div>
+
+  <div class="filter-bar" id="filterBar" style="display:none">
+    <label>Sortér:</label>
+    <select id="sortSelect" onchange="renderListings()">
+      <option value="deal">Deal-score (bedst først)</option>
+      <option value="price_asc">Pris (lav → høj)</option>
+      <option value="price_desc">Pris (høj → lav)</option>
+      <option value="title">Titel A–Z</option>
+    </select>
+    <label>Kilde:</label>
+    <select id="sourceFilter" onchange="renderListings()">
+      <option value="">Begge</option>
+      <option value="dba">🇩🇰 DBA</option>
+      <option value="kleinanzeigen">🇩🇪 Kleinanzeigen</option>
+    </select>
+    <label class="toggle-deals">
+      <input type="checkbox" id="dealsOnly" onchange="renderListings()" />
+      Kun deals
+    </label>
+  </div>
+
+  <div id="results">
+    <div class="empty">
+      <div class="icon">🛒</div>
+      <p>Søg ovenfor — vi finder annoncer fra DBA og Kleinanzeigen og sammenligner priserne</p>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  let allListings = [], combinedAvg = 0, currentRate = 7.46, lastQuery = "";
+  let priceChart = null, chartVisible = false;
+
+  fetch("/api/rate", { credentials: "include" })
+    .then(r => r.json()).then(d => {
+      currentRate = d.eur_dkk;
+      document.getElementById("headerRate").textContent = d.eur_dkk.toFixed(4);
+    }).catch(() => {});
+
+  document.getElementById("queryInput").addEventListener("keydown", e => { if (e.key === "Enter") runSearch(); });
+
+  async function logout() {
+    await fetch("/api/logout", { method: "POST", credentials: "include" });
+    window.location.href = "/login";
+  }
+
+  async function runSearch() {
+    const query = document.getElementById("queryInput").value.trim();
+    if (!query) { showError("Skriv hvad du leder efter."); return; }
+    const maxPrice    = parseInt(document.getElementById("maxPriceInput").value) || null;
+    const minDiscount = parseInt(document.getElementById("discountSlider").value);
+    lastQuery = query;
+    setLoading(true); hideError();
+
+    try {
+      const res = await fetch("/api/search", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, max_price: maxPrice, min_discount: minDiscount }),
+      });
+      if (res.status === 401) { window.location.href = "/login"; return; }
+      if (!res.ok) throw new Error(`Server fejl: ${res.status}`);
+      const data = await res.json();
+
+      allListings  = data.listings;
+      combinedAvg  = data.combined_avg_dkk || 0;
+      currentRate  = data.eur_dkk_rate || currentRate;
+
+      document.getElementById("headerRate").textContent = currentRate.toFixed(4);
+      document.getElementById("avgPrice").textContent   = combinedAvg ? Math.round(combinedAvg).toLocaleString("da-DK") : "—";
+      document.getElementById("rateDisplay").textContent = `1 EUR = ${currentRate.toFixed(4)} DKK`;
+      document.getElementById("dbaCount").textContent   = data.dba_count;
+      document.getElementById("kaCount").textContent    = data.ka_count;
+      document.getElementById("avgPill").style.display  = "inline-flex";
+
+      if (data.errors && data.errors.length) {
+        showError("Advarsel: " + data.errors.join(" | "));
+      }
+
+      updateStats(data.total, data.deals, query);
+      renderListings();
+      if (chartVisible) loadChart(query);
+    } catch (err) {
+      showError("Kunne ikke hente data: " + err.message);
+    } finally { setLoading(false); }
+  }
+
+  async function toggleChart() {
+    const section = document.getElementById("chartSection");
+    chartVisible = !chartVisible;
+    section.style.display = chartVisible ? "block" : "none";
+    if (chartVisible && lastQuery) loadChart(lastQuery);
+  }
+
+  async function loadChart(query) {
+    document.getElementById("chartTitle").textContent = query;
+    try {
+      const res  = await fetch(`/api/history?query=${encodeURIComponent(query)}&days=30`, { credentials: "include" });
+      const data = await res.json();
+      if (!data.length) { document.getElementById("chartTitle").textContent = query + " — ikke nok data endnu"; return; }
+      const ctx = document.getElementById("priceChart").getContext("2d");
+      if (priceChart) priceChart.destroy();
+      priceChart = new Chart(ctx, {
+        type: "line",
+        data: { labels: data.map(d => d.recorded_at.slice(0,16).replace("T"," ")), datasets: [
+          { label: "DBA gennemsnit (kr)", data: data.map(d => d.dba_avg_dkk), borderColor: "#6c63ff", backgroundColor: "rgba(108,99,255,.1)", tension: 0.3, fill: true, pointRadius: 3 },
+          { label: "DBA laveste (kr)",    data: data.map(d => d.dba_min_dkk), borderColor: "#22c55e", backgroundColor: "transparent", tension: 0.3, borderDash: [5,3], pointRadius: 3 },
+          { label: "Samlet gennemsnit",   data: data.map(d => d.ka_avg_dkk),  borderColor: "#facc15", backgroundColor: "transparent", tension: 0.3, borderDash: [8,4], pointRadius: 2 },
+        ]},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: "#8892a4", boxWidth: 14 } } },
+          scales: {
+            x: { ticks: { color: "#8892a4", maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,.05)" } },
+            y: { ticks: { color: "#8892a4", callback: v => v.toLocaleString("da-DK") + " kr" }, grid: { color: "rgba(255,255,255,.05)" } },
+          },
+        },
+      });
+    } catch(e) { console.error("Graf fejl:", e); }
+  }
+
+  async function saveNotification() {
+    const email = document.getElementById("notifyEmail").value.trim();
+    const query = document.getElementById("queryInput").value.trim() || lastQuery;
+    if (!email) { showError("Indtast din email-adresse."); return; }
+    if (!query) { showError("Lav en søgning først."); return; }
+    const maxPrice = parseInt(document.getElementById("maxPriceInput").value) || null;
+    const minDiscount = parseInt(document.getElementById("discountSlider").value);
+    try {
+      const res = await fetch("/api/notify", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, query, min_discount: minDiscount, max_price: maxPrice }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const el = document.getElementById("notifySuccess");
+      el.textContent = "✅ " + data.message;
+      el.style.display = "block";
+      setTimeout(() => el.style.display = "none", 5000);
+    } catch { showError("Kunne ikke gemme notifikation."); }
+  }
+
+  function renderListings() {
+    const sortBy      = document.getElementById("sortSelect").value;
+    const sourceFilter = document.getElementById("sourceFilter").value;
+    const dealsOnly   = document.getElementById("dealsOnly").checked;
+    const minDiscount = parseInt(document.getElementById("discountSlider").value);
+
+    let items = [...allListings];
+    if (sourceFilter) items = items.filter(l => l.source === sourceFilter);
+    if (dealsOnly)    items = items.filter(l => l.deal_score >= minDiscount);
+
+    if (sortBy === "deal")       items.sort((a,b) => b.deal_score - a.deal_score);
+    else if (sortBy === "price_asc")  items.sort((a,b) => a.price_dkk - b.price_dkk);
+    else if (sortBy === "price_desc") items.sort((a,b) => b.price_dkk - a.price_dkk);
+    else if (sortBy === "title") items.sort((a,b) => a.title.localeCompare(b.title));
+
+    const grid = document.getElementById("results");
+    if (!items.length) {
+      grid.innerHTML = `<div class="empty"><div class="icon">😔</div><p>Ingen resultater — prøv et andet søgeord eller juster filtrene.</p></div>`;
+      return;
+    }
+    grid.innerHTML = `<div class="results-grid">${items.map(cardHTML).join("")}</div>`;
+  }
+
+  function cardHTML(l) {
+    const minDiscount = parseInt(document.getElementById("discountSlider").value);
+    const isDeal = l.deal_score >= minDiscount;
+    const isKA   = l.source === "kleinanzeigen";
+
+    const priceStr = isKA
+      ? `${l.price.toLocaleString("da-DK")} <small>EUR</small> <span class="dkk-equiv">(≈ ${l.price_dkk.toLocaleString("da-DK")} kr)</span>`
+      : `${l.price.toLocaleString("da-DK")} <small>kr</small>`;
+
+    const avgRef = combinedAvg
+      ? `<span class="ref-note">vs. ${Math.round(combinedAvg).toLocaleString("da-DK")} kr snit</span>`
+      : "";
+    const dealBadge = isDeal
+      ? `<span class="deal-badge">🔥 ${Math.round(l.deal_score)}% under snit ${avgRef}</span>`
+      : "";
+
+    const flag = isKA ? "🇩🇪" : "🇩🇰";
+
+    return `
+      <a class="listing-card ${isDeal ? "deal" : ""}" href="${l.url}" target="_blank" rel="noopener">
+        <div class="card-top">
+          <div class="card-title">${escHtml(l.title)}</div>
+          <span class="source-tag ${l.source}">${flag} ${isKA ? "KA" : "DBA"}</span>
+        </div>
+        <div class="card-price">${priceStr}</div>
+        ${dealBadge}
+        <div class="card-location">📍 ${escHtml(l.location || "—")}</div>
+      </a>`;
+  }
+
+  function updateStats(total, deals, query) {
+    document.getElementById("statTotal").textContent = total;
+    document.getElementById("statDeals").textContent = deals;
+    document.getElementById("statQuery").textContent = query;
+    document.getElementById("statsBar").style.display = "flex";
+    document.getElementById("filterBar").style.display = "flex";
+  }
+  function setLoading(on) {
+    const btn = document.getElementById("searchBtn");
+    btn.disabled = on;
+    document.getElementById("spinner").style.display = on ? "block" : "none";
+    btn.querySelector("span").textContent = on ? "Søger…" : "Søg";
+  }
+  function showError(msg) { const el = document.getElementById("errorBanner"); el.textContent = "⚠️ " + msg; el.style.display = "block"; }
+  function hideError() { document.getElementById("errorBanner").style.display = "none"; }
+  function escHtml(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+</script>
+</body>
+</html>
